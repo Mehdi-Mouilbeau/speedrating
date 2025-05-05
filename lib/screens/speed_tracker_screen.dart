@@ -26,6 +26,11 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
   // Liste pour enregistrer les données de vitesse
   final List<Map<String, dynamic>> speedData = [];
 
+  // Points de calibration
+  Offset? _calibrationStartPx;
+  Offset? _calibrationEndPx;
+  bool _isCalibrating = true;
+
   @override
   void initState() {
     super.initState();
@@ -38,7 +43,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
     _controller = await _cameraService.initializeCamera(widget.cameras.first);
     if (_controller != null) {
       _controller!.startImageStream((image) async {
-        if (!_isDetecting) {
+        if (!_isDetecting && !_isCalibrating) {
           _isDetecting = true;
           await _poseService.processPose(image, _updateSpeed);
           _isDetecting = false;
@@ -48,22 +53,51 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
     }
   }
 
-  void _updateSpeed(Offset position) {
+  void _onTapDown(TapDownDetails details) {
+    final position = details.localPosition;
+    if (_calibrationStartPx == null) {
+      setState(() {
+        _calibrationStartPx = position;
+      });
+      print('Position 0m enregistrée : $position');
+    } else if (_calibrationEndPx == null) {
+      setState(() {
+        _calibrationEndPx = position;
+        _isCalibrating = false;
+      });
+      print('Position 20m enregistrée : $position');
+    }
+  }
+
+  double _pixelToMeters(Offset current) {
+    if (_calibrationStartPx == null || _calibrationEndPx == null) return 0;
+
+    final totalPixelDistance = (_calibrationEndPx! - _calibrationStartPx!).distance;
+    final currentDistance = (current - _calibrationStartPx!).distance;
+
+    final meters = 20.0 * (currentDistance / totalPixelDistance);
+    return meters;
+  }
+
+  void _updateSpeed(Offset currentPosition) {
     final now = DateTime.now();
-    _positionHistory.add(position);
+    _positionHistory.add(currentPosition);
     if (_positionHistory.length > 10) {
       _positionHistory.removeAt(0);
     }
 
-    if (_positionHistory.length >= 2) {
-      final previousPosition = _positionHistory.first;
+    if (_positionHistory.length >= 2 && !_isCalibrating) {
+      final previous = _positionHistory[_positionHistory.length - 2];
       final previousTime = _lastUpdateTime ?? now;
+
       final timeDiff = now.difference(previousTime).inMilliseconds / 1000;
-      final displacement = (position - previousPosition).distance;
+      final d1 = _pixelToMeters(previous);
+      final d2 = _pixelToMeters(currentPosition);
+      final deltaMeters = d2 - d1;
 
       if (timeDiff > 0) {
-        final speed = displacement / timeDiff;
-        final speedKmh = speed * 3.6; // Convert to km/h
+        final speedMps = deltaMeters / timeDiff;
+        final speedKmh = speedMps * 3.6;
 
         setState(() {
           _currentSpeed = speedKmh;
@@ -102,8 +136,23 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
         children: [
           AspectRatio(
             aspectRatio: _controller!.value.aspectRatio,
-            child: CameraPreview(_controller!),
+            child: GestureDetector(
+              onTapDown: _onTapDown,
+              child: CameraPreview(_controller!),
+            ),
           ),
+          if (_calibrationStartPx != null)
+            Positioned(
+              left: _calibrationStartPx!.dx,
+              top: _calibrationStartPx!.dy,
+              child: Icon(Icons.circle, color: Colors.red, size: 20),
+            ),
+          if (_calibrationEndPx != null)
+            Positioned(
+              left: _calibrationEndPx!.dx,
+              top: _calibrationEndPx!.dy,
+              child: Icon(Icons.circle, color: Colors.red, size: 20),
+            ),
           Positioned(
             top: 20,
             left: 20,
