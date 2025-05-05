@@ -1,4 +1,3 @@
-// lib/camera/camera_service.dart
 import 'package:camera/camera.dart';
 
 class CameraService {
@@ -14,4 +13,10 @@ class CameraService {
 
   CameraController? get controller => _controller;
   bool get isInitialized => _isInitialized;
+
+  void dispose() {
+    _controller?.dispose();
+    _controller = null;
+    _isInitialized = false;
+  }
 }

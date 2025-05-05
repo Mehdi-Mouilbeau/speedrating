@@ -1,4 +1,3 @@
-// lib/screen/speed_tracker_screen.dart
 import 'package:athle/export/exportToCsv.dart';
 import 'package:athle/screens/speed_chart_screen.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +24,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
   DateTime? _lastUpdateTime;
 
   // Liste pour enregistrer les données de vitesse
-  List<Map<String, dynamic>> speedData = [];
+  final List<Map<String, dynamic>> speedData = [];
 
   @override
   void initState() {
@@ -36,7 +35,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    _controller = await _cameraService.initializeCamera(widget.cameras[0]);
+    _controller = await _cameraService.initializeCamera(widget.cameras.first);
     if (_controller != null) {
       _controller!.startImageStream((image) async {
         if (!_isDetecting) {
@@ -45,6 +44,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
           _isDetecting = false;
         }
       });
+      setState(() {}); // Force UI update after camera initialization
     }
   }
 
@@ -83,6 +83,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _cameraService.dispose();
     super.dispose();
   }
 
@@ -112,8 +113,7 @@ class _SpeedTrackerScreenState extends State<SpeedTrackerScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        SpeedChartScreen(speedData: speedData),
+                    builder: (context) => SpeedChartScreen(speedData: speedData),
                   ),
                 );
               },
