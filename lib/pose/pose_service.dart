@@ -1,5 +1,3 @@
-// lib/pose/pose_service.dart
-
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
@@ -7,7 +5,7 @@ import 'package:google_ml_kit/google_ml_kit.dart';
 class PoseService {
   final PoseDetector _poseDetector = GoogleMlKit.vision.poseDetector();
 
-  Future<void> processPose(CameraImage image, Function(Offset) updateSpeed) async {
+  Future<void> processPose(CameraImage image, Function(Offset, Offset) updateSpeed) async {
     final inputImage = InputImage.fromBytes(
       bytes: _concatenatePlanes(image.planes),
       metadata: InputImageMetadata(
@@ -25,11 +23,9 @@ class PoseService {
       final rightAnkle = pose.landmarks[PoseLandmarkType.rightAnkle];
 
       if (leftAnkle != null && rightAnkle != null) {
-        final position = Offset(
-          (leftAnkle.x + rightAnkle.x) / 2,
-          (leftAnkle.y + rightAnkle.y) / 2,
-        );
-        updateSpeed(position);
+        final leftAnklePosition = Offset(leftAnkle.x, leftAnkle.y);
+        final rightAnklePosition = Offset(rightAnkle.x, rightAnkle.y);
+        updateSpeed(leftAnklePosition, rightAnklePosition);
       }
     }
   }
